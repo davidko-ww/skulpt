@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const minify = require('babel-minify');
+// const minify = require('babel-minify');
 
 /**
  * If this optional file exists in the top level directory, it will be
@@ -77,7 +77,7 @@ if (process.argv.includes("internal")) {
     }
     let opts = {
         recursive: true,
-        minifyjs: true,
+        minifyjs: false,
         excludes: excludes
     };
 
