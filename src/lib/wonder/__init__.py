@@ -117,6 +117,10 @@ class Robot(impl.RobotImpl):
         fut.wait()
 
     def head_pan_async(self, degrees):
+        if degrees > 120:
+            degrees = 120
+        if degrees < -120:
+            degrees = -120
         head_pan_threshold = 2.0
         self._headPan(degrees)
         fut = future.Future()
@@ -124,14 +128,47 @@ class Robot(impl.RobotImpl):
         def head_pan_done_cb(sensor_obj):
             if (time.time() - call_time) < MIN_TIMEOUT:
                 return True
-            pan_angle = sensor_obj['HEAD_POSITION_PAN']['degree']
+            try:
+                pan_angle = sensor_obj['HEAD_POSITION_PAN']['degree']
+            except KeyError:
+                return True
             if abs(pan_angle - degrees) < head_pan_threshold:
                 fut.set_result(None)
                 return False
+            else:
+                return True
         self._addSensorEventListener(head_pan_done_cb)
         return fut
 
     def head_pan(self, degrees):
         fut = self.head_pan_async(degrees)
+        fut.wait()
+
+    def head_tilt_async(self, degrees):
+        if degrees > 7:
+            degrees = 7
+        if degrees < -22.5:
+            degrees = -22.5
+        head_tilt_threshold = 2.0
+        self._headTilt(degrees)
+        fut = future.Future()
+        call_time = time.time()
+        def head_tilt_done_cb(sensor_obj):
+            if (time.time() - call_time) < MIN_TIMEOUT:
+                return True
+            try:
+                tilt_angle = sensor_obj['HEAD_POSITION_TILT']['degree']
+            except KeyError:
+                return True
+            if abs(tilt_angle - degrees) < head_tilt_threshold:
+                fut.set_result(None)
+                return False
+            else:
+                return True
+        self._addSensorEventListener(head_tilt_done_cb)
+        return fut
+
+    def head_tilt(self, degrees):
+        fut = self.head_tilt_async(degrees)
         fut.wait()
 
