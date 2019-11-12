@@ -116,3 +116,22 @@ class Robot(impl.RobotImpl):
         fut = self.pose_async(x, y, degrees, time)
         fut.wait()
 
+    def head_pan_async(self, degrees):
+        head_pan_threshold = 2.0
+        self._headPan(degrees)
+        fut = future.Future()
+        call_time = time.time()
+        def head_pan_done_cb(sensor_obj):
+            if (time.time() - call_time) < MIN_TIMEOUT:
+                return True
+            pan_angle = sensor_obj['HEAD_POSITION_PAN']['degree']
+            if abs(pan_angle - degrees) < head_pan_threshold:
+                fut.set_result(None)
+                return False
+        self._addSensorEventListener(head_pan_done_cb)
+        return fut
+
+    def head_pan(self, degrees):
+        fut = self.head_pan_async(degrees)
+        fut.wait()
+
