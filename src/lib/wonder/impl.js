@@ -8,8 +8,19 @@ var $builtinmodule = function(name) {
         $loc.__init__ = new Sk.builtin.func(function(self) {
             self.robot = null;
 
+            // self._sendCommandResolve holds a Promise.resolve() function.
+            // Upon calling any member function which sends a Bluetooth command,
+            // this variable is set. The calling function then waits until 
+            // the promise is fulfilled, which occurs in the onSensor()
+            // callback. This effectively limits the rate of robot functions to 
+            // once per sensor packet received.
+            self._sendCommandResolve = null;
             self._sensor_event_handlers = [];
             var onSensor = function(sensors_obj) {
+                if(self._sendCommandResolve) {
+                    self._sendCommandResolve();
+                    self._sendCommandResolve = null;
+                }
                 let id = sensors_obj.id;
                 let sensors = sensors_obj.sensors;
                 sensors = Sk.ffi.remapToPy(sensors);
@@ -50,7 +61,7 @@ var $builtinmodule = function(name) {
             }));
         });
 
-        $loc._addSensorEventListener = new Sk.builtin.func( (self, func) => {
+        $loc._add_sensor_event_listener = new Sk.builtin.func( (self, func) => {
             // Add a new sensor event listener. The callback function should
             // have the following prototype:
             //     bool func(sensor_object)
@@ -59,74 +70,107 @@ var $builtinmodule = function(name) {
             console.log(self._sensor_event_handlers);
         });
 
-        $loc.eyeRing = new Sk.builtin.func( (self, boolArray, brightness) => {
+        $loc._eye_ring = new Sk.builtin.func( (self, boolArray, brightness) => {
             boolArray = Sk.ffi.remapToJs(boolArray);
             brightness = Sk.ffi.remapToJs(brightness);
-            return self.robot.command.eyeRing(boolArray, brightness);
+            self.robot.command.eyering(boolArray, brightness);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.rgbAll = new Sk.builtin.func( (self, r, g, b) => {
+        $loc.rgb_all = new Sk.builtin.func( (self, r, g, b) => {
+            r = Sk.ffi.remapToJs(r);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
+            self.robot.command.rgbAll(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
+        });
+
+        $loc.rgb_eye = new Sk.builtin.func( (self, r, g, b) => {
+            r = Sk.ffi.remapToJs(r);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
+            self.robot.command.rgbEye(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
+        });
+
+        $loc.rgb_left_ear = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
             b = Sk.ffi.remapToJs(g);
             g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbAll(r, g, b);
+            self.robot.command.rgbLeftEar(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.rgbEye = new Sk.builtin.func( (self, r, g, b) => {
+        $loc.rgb_right_ear = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
             b = Sk.ffi.remapToJs(g);
             g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbEye(r, g, b);
+            self.robot.command.rgbRightEar(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.rgbLeftEar = new Sk.builtin.func( (self, r, g, b) => {
+        $loc.rgb_chest = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
             b = Sk.ffi.remapToJs(g);
             g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbLeftEar(r, g, b);
+            self.robot.command.rgbChest(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.rgbRightEar = new Sk.builtin.func( (self, r, g, b) => {
+        $loc.rgb_button_main = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
             b = Sk.ffi.remapToJs(g);
             g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbRightEar(r, g, b);
-        });
-
-        $loc.rgbChest = new Sk.builtin.func( (self, r, g, b) => {
-            r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbChest(r, g, b);
-        });
-
-        $loc.rgbButtonMain = new Sk.builtin.func( (self, r, g, b) => {
-            r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
-            return self.robot.command.rgbButtonMain(r, g, b);
+            self.robot.command.rgbButtonMain(r, g, b);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
         $loc._sound = new Sk.builtin.func( (self, filename, volume) => {
             filename = Sk.ffi.remapToJs(filename);
             volume = Sk.ffi.remapToJs(volume);
-            return self.robot.command.sound(filename, volume);
+            self.robot.command.sound(filename, volume);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc._headPan = new Sk.builtin.func( (self, degrees) => {
+        $loc._head_pan = new Sk.builtin.func( (self, degrees) => {
             degrees = Sk.ffi.remapToJs(degrees);
-            return self.robot.command.headPan(degrees);
+            self.robot.command.headPan(degrees);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc._headTilt = new Sk.builtin.func( (self, degrees) => {
+        $loc._head_tilt = new Sk.builtin.func( (self, degrees) => {
             degrees = Sk.ffi.remapToJs(degrees);
-            return self.robot.command.headTilt(degrees);
+            self.robot.command.headTilt(degrees);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.linearAngular = new Sk.builtin.func( (self, cmPerSecond, degreesPerSecond) => {
+        $loc.linear_angular = new Sk.builtin.func( (self, cmPerSecond, degreesPerSecond) => {
             cmPerSecond = Sk.ffi.remapToJs(cmPerSecond);
             degreesPerSecond = Sk.ffi.remapToJs(degreesPerSecond);
-            return self.robot.command.linearAngular(cmPerSecond, degreesPerSecond);
+            self.robot.command.linearAngular(cmPerSecond, degreesPerSecond);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
         $loc._pose = new Sk.builtin.func( (self, x, y, degrees, time) => {
@@ -134,13 +178,19 @@ var $builtinmodule = function(name) {
             y = Sk.ffi.remapToJs(y);
             degrees = Sk.ffi.remapToJs(degrees);
             time = Sk.ffi.remapToJs(time);
-            return self.robot.command.pose(x, y, degrees, time);
+            self.robot.command.pose(x, y, degrees, time);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
-        $loc.wheelSpeeds = new Sk.builtin.func( (self, leftCmS, rightCmS) => {
+        $loc.wheel_speeds = new Sk.builtin.func( (self, leftCmS, rightCmS) => {
             left = Sk.ffi.remapToJs(leftCmS);
             right = Sk.ffi.remapToJs(RightCmS);
-            return self.robot.command.wheelSpeeds(left, right);
+            self.robot.command.wheelSpeeds(left, right);
+            return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
+                self._sendCommandResolve = resolve;
+            }));
         });
 
     }, 'RobotImpl', []);

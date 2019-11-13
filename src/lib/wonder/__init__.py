@@ -74,6 +74,18 @@ class Robot(impl.RobotImpl):
         super(Robot, self).__init__(*args, **kwargs)
         self._event_handlers = []
 
+    def eye_ring(self, bit_string, brightness):
+        # bit_string is a string of 12 ones and zeroes. e.g. "101100111011"
+        def f(x):
+            if x == '0':
+                return False
+            elif x == '1':
+                return True
+            else:
+                raise ValueError('bit_string must be a string of "0" and "1" characters')
+        bool_array = list(map(f, bit_string))
+        self._eye_ring(bool_array, brightness)
+
     def sound_async(self, filename, volume):
         self._sound(filename, volume)
         fut = future.Future()
@@ -86,7 +98,7 @@ class Robot(impl.RobotImpl):
                 return False
             else:
                 return True
-        self._addSensorEventListener(sound_done_cb)
+        self._add_sensor_event_listener(sound_done_cb)
         return fut
 
     def sound(self, filename, volume):
@@ -109,7 +121,7 @@ class Robot(impl.RobotImpl):
                     return True
             except KeyError:
                 return True
-        self._addSensorEventListener(pose_done_cb)
+        self._add_sensor_event_listener(pose_done_cb)
         return fut
 
     def pose(self, x, y, degrees, time):
@@ -122,7 +134,7 @@ class Robot(impl.RobotImpl):
         if degrees < -120:
             degrees = -120
         head_pan_threshold = 2.0
-        self._headPan(degrees)
+        self._head_pan(degrees)
         fut = future.Future()
         call_time = time.time()
         def head_pan_done_cb(sensor_obj):
@@ -137,7 +149,7 @@ class Robot(impl.RobotImpl):
                 return False
             else:
                 return True
-        self._addSensorEventListener(head_pan_done_cb)
+        self._add_sensor_event_listener(head_pan_done_cb)
         return fut
 
     def head_pan(self, degrees):
@@ -150,7 +162,7 @@ class Robot(impl.RobotImpl):
         if degrees < -22.5:
             degrees = -22.5
         head_tilt_threshold = 2.0
-        self._headTilt(degrees)
+        self._head_tilt(degrees)
         fut = future.Future()
         call_time = time.time()
         def head_tilt_done_cb(sensor_obj):
@@ -165,7 +177,7 @@ class Robot(impl.RobotImpl):
                 return False
             else:
                 return True
-        self._addSensorEventListener(head_tilt_done_cb)
+        self._add_sensor_event_listener(head_tilt_done_cb)
         return fut
 
     def head_tilt(self, degrees):
