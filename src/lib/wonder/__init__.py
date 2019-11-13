@@ -184,3 +184,18 @@ class Robot(impl.RobotImpl):
         fut = self.head_tilt_async(degrees)
         fut.wait()
 
+    def on_button_main(self, fn):
+        # Add a callback for when the main button is pressed. The callback
+        # signature should be:
+        #     fn(button_down)
+        self._last_main_button_state = 0
+        def _cb(sensor_obj):
+            last_button_state = self._last_main_button_state
+            button_down = sensor_obj['BUTTON_MAIN']['s']
+            if last_button_state != button_down:
+                fn(button_down)
+                self._last_main_button_state = button_down
+            return True
+        self._add_sensor_event_listener(_cb)
+            
+
