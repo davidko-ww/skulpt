@@ -75,6 +75,14 @@ class Robot(impl.RobotImpl):
         self._event_handlers = []
         self._state_vars = {}
         self._state_var_keys = 0
+        self._last_sensor_obj = {}
+        self._add_sensor_event_listener(self._on_sensor)
+        # Wait for first sensor packet to arrive
+        while len(self._last_sensor_obj) == 0:
+            time.sleep(0.1)
+
+    def _on_sensor(self, sensor_obj):
+        self._last_sensor_obj.update(sensor_obj)
 
     def _new_state_var(self):
         self._state_vars[self._state_var_keys] = 0
@@ -197,7 +205,7 @@ class Robot(impl.RobotImpl):
         # signature should be:
         #     fn(button_down)
         state_key = self._new_state_var()
-        self._state_vars[state_key] = 0
+        self._state_vars[state_key] = self._last_sensor_obj['BUTTON_MAIN']['s']
         def _cb(sensor_obj):
             last_button_state = self._state_vars[state_key]
             button_down = sensor_obj['BUTTON_MAIN']['s']
@@ -207,4 +215,12 @@ class Robot(impl.RobotImpl):
             return True
         self._add_sensor_event_listener(_cb)
 
-
+    def wait_until_button_main(self):
+        state_key = self._new_state_var()
+        self._state_vars[state_key] = 0
+        fut = future.Future()
+        def _cb(button_down):
+            if button_down:
+                fut.set_result(None) 
+        self.on_button_main(_cb)
+        fut.wait()
