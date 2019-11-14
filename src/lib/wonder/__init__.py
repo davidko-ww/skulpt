@@ -200,27 +200,50 @@ class Robot(impl.RobotImpl):
         fut = self.head_tilt_async(degrees)
         fut.wait()
 
+    def on_button(self, button_id, fn):
+        # Register a callback for a button. Returns callback handler ID.
+        # button_id: A string. One of 'BUTTON_MAIN', 'BUTTON_1', 'BUTTON_2', or
+        #   'BUTTON_3'
+        # fn: The callback function. Signature should be 'fn(button_down) => bool'
+        state_key = self._new_state_var()
+        self._state_vars[state_key] = self._last_sensor_obj[button_id]['s']
+        def _cb(sensor_obj):
+            last_button_state = self._state_vars[state_key]
+
+            try:
+                button_down = sensor_obj[button_id]['s']
+            except KeyError:
+                return True
+
+            if last_button_state != button_down:
+                rc = fn(button_down)
+                self._state_vars[state_key] = button_down
+            if rc is None:
+                rc = True
+            return rc
+
+        return self._add_sensor_event_listener(_cb)
+
     def on_button_main(self, fn):
         # Add a callback for when the main button is pressed. The callback
         # signature should be:
-        #     fn(button_down)
-        state_key = self._new_state_var()
-        self._state_vars[state_key] = self._last_sensor_obj['BUTTON_MAIN']['s']
-        def _cb(sensor_obj):
-            last_button_state = self._state_vars[state_key]
-            button_down = sensor_obj['BUTTON_MAIN']['s']
-            if last_button_state != button_down:
-                fn(button_down)
-                self._state_vars[state_key] = button_down
-            return True
-        self._add_sensor_event_listener(_cb)
+        #     fn(button_down) => bool
+        # If the callback function returns False, the callback will not be
+        # called again.
+        return self.on_button('BUTTON_MAIN', fn)
 
-    def wait_until_button_main(self):
+    def wait_until_button(self, button_id):
+        # Wait for a button press.
+        # button_id: A string. One of 'BUTTON_MAIN', 'BUTTON_1', 'BUTTON_2', 'BUTTON_3'
         state_key = self._new_state_var()
         self._state_vars[state_key] = 0
         fut = future.Future()
         def _cb(button_down):
             if button_down:
                 fut.set_result(None) 
-        self.on_button_main(_cb)
+            return False
+        self.on_button(button_id, _cb)
         fut.wait()
+
+    def wait_until_button_main(self):
+        return self.wait_until_button('BUTTON_MAIN')

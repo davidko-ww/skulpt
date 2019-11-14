@@ -27,7 +27,7 @@ var $builtinmodule = function(name) {
                 if(id == self.robot.id) {
                     let i = 0;
                     while ( i < self._sensor_event_handlers.length ) {
-                        let rc = Sk.misceval.callsim(self._sensor_event_handlers[i], sensors);
+                        let rc = Sk.misceval.callsim(self._sensor_event_handlers[i].f, sensors);
                         rc = Sk.ffi.remapToJs(rc);
                         if ( rc ) {
                             i++;
@@ -60,14 +60,36 @@ var $builtinmodule = function(name) {
                 }
             }));
         });
-
+    
+        var _sensor_event_handlers_index = 0;
         $loc._add_sensor_event_listener = new Sk.builtin.func( (self, func) => {
             // Add a new sensor event listener. The callback function should
             // have the following prototype:
             //     bool func(sensor_object)
             // If the callback returns false, it will not be called again.
-            self._sensor_event_handlers.push(func);
-            console.log(self._sensor_event_handlers);
+            self._sensor_event_handlers.push({id:_sensor_event_handlers_index, f:func});
+            var rc = _sensor_event_handlers_index;
+            _sensor_event_handlers_index++;
+            return rc;
+        });
+
+        $loc._remove_sensor_event_listener = new Sk.builtin.func( (self, id) => {
+            // Remove a sensor event handler by its id. If a handler was removed, 
+            // this function returns True. If no handler was found by that id, 
+            // this function returns false.
+            let len = self._sensor_event_handlers.length;
+            self._sensor_event_handlers = self._sensor_event_handlers.filter( ({_id, f}) => {
+                if ( id == _id ) {
+                    return false;
+                } else {
+                    return true;
+                }
+            });
+            if ( len == self._sensor_event_handlers.length ) {
+                return false;
+            } else {
+                return true;
+            }
         });
 
         $loc._eye_ring = new Sk.builtin.func( (self, boolArray, brightness) => {
@@ -101,8 +123,8 @@ var $builtinmodule = function(name) {
 
         $loc.rgb_left_ear = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
             self.robot.command.rgbLeftEar(r, g, b);
             return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
                 self._sendCommandResolve = resolve;
@@ -111,8 +133,8 @@ var $builtinmodule = function(name) {
 
         $loc.rgb_right_ear = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
             self.robot.command.rgbRightEar(r, g, b);
             return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
                 self._sendCommandResolve = resolve;
@@ -121,8 +143,8 @@ var $builtinmodule = function(name) {
 
         $loc.rgb_chest = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
             self.robot.command.rgbChest(r, g, b);
             return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
                 self._sendCommandResolve = resolve;
@@ -131,8 +153,8 @@ var $builtinmodule = function(name) {
 
         $loc.rgb_button_main = new Sk.builtin.func( (self, r, g, b) => {
             r = Sk.ffi.remapToJs(r);
-            b = Sk.ffi.remapToJs(g);
-            g = Sk.ffi.remapToJs(b);
+            g = Sk.ffi.remapToJs(g);
+            b = Sk.ffi.remapToJs(b);
             self.robot.command.rgbButtonMain(r, g, b);
             return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
                 self._sendCommandResolve = resolve;
