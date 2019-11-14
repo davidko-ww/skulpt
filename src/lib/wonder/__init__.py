@@ -83,6 +83,7 @@ class Robot(impl.RobotImpl):
 
     def _on_sensor(self, sensor_obj):
         self._last_sensor_obj.update(sensor_obj)
+        return True
 
     def _new_state_var(self):
         self._state_vars[self._state_var_keys] = 0
@@ -215,11 +216,12 @@ class Robot(impl.RobotImpl):
             except KeyError:
                 return True
 
+            rc = True
             if last_button_state != button_down:
                 rc = fn(button_down)
                 self._state_vars[state_key] = button_down
-            if rc is None:
-                rc = True
+                if rc is not False:
+                    rc = True
             return rc
 
         return self._add_sensor_event_listener(_cb)
@@ -232,18 +234,50 @@ class Robot(impl.RobotImpl):
         # called again.
         return self.on_button('BUTTON_MAIN', fn)
 
+    def on_button_1(self, fn):
+        # Add a callback for when the button 1 is pressed. The callback
+        # signature should be:
+        #     fn(button_down) => bool
+        # If the callback function returns False, the callback will not be
+        # called again.
+        return self.on_button('BUTTON_1', fn)
+
+    def on_button_2(self, fn):
+        # Add a callback for when the button 2 is pressed. The callback
+        # signature should be:
+        #     fn(button_down) => bool
+        # If the callback function returns False, the callback will not be
+        # called again.
+        return self.on_button('BUTTON_2', fn)
+
+    def on_button_3(self, fn):
+        # Add a callback for when the button 3 is pressed. The callback
+        # signature should be:
+        #     fn(button_down) => bool
+        # If the callback function returns False, the callback will not be
+        # called again.
+        return self.on_button('BUTTON_3', fn)
+
     def wait_until_button(self, button_id):
         # Wait for a button press.
         # button_id: A string. One of 'BUTTON_MAIN', 'BUTTON_1', 'BUTTON_2', 'BUTTON_3'
-        state_key = self._new_state_var()
-        self._state_vars[state_key] = 0
         fut = future.Future()
         def _cb(button_down):
             if button_down:
                 fut.set_result(None) 
-            return False
+                return False
+            return True
         self.on_button(button_id, _cb)
         fut.wait()
 
     def wait_until_button_main(self):
         return self.wait_until_button('BUTTON_MAIN')
+
+    def wait_until_button_1(self):
+        return self.wait_until_button('BUTTON_1')
+
+    def wait_until_button_2(self):
+        return self.wait_until_button('BUTTON_2')
+
+    def wait_until_button_3(self):
+        return self.wait_until_button('BUTTON_3')
