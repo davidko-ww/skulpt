@@ -281,3 +281,45 @@ class Robot(impl.RobotImpl):
 
     def wait_until_button_3(self):
         return self.wait_until_button('BUTTON_3')
+
+    def ir_distance_left(self):
+        return self._last_sensor_obj['DISTANCE_FRONT_LEFT_FACING']['cm']
+
+    def ir_distance_right(self):
+        return self._last_sensor_obj['DISTANCE_FRONT_RIGHT_FACING']['cm']
+
+    def ir_distance_back(self):
+        return self._last_sensor_obj['DISTANCE_BACK']['cm']
+
+    def on_clap_heard(self, fn):
+        # Add a callback for when a clap is heard. Callback signature:
+        # fn() => bool
+        # if the callback returns False, it will not be called again if there
+        # are additional claps.
+        state_key = self._new_state_var()
+        self._state_vars[state_key] = self._last_sensor_obj['MICROPHONE']['clap']
+        def _cb(sensor_obj):
+            last_clap_state = self._state_vars[state_key]
+
+            try:
+                clap_heard = sensor_obj['MICROPHONE']['clap']
+            except KeyError:
+                return True
+
+            rc = True
+            if (last_clap_state != clap_heard) and (clap_heard):
+                rc = fn()
+                if rc is not False:
+                    rc = True
+            self._state_vars[state_key] = clap_heard
+            return rc
+
+        return self._add_sensor_event_listener(_cb)
+
+    def wait_until_clap(self):
+        fut = future.Future()
+        def _cb():
+            fut.set_result(None)
+            return False
+        self.on_clap_heard(_cb)
+        fut.wait()
