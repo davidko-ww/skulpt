@@ -205,7 +205,7 @@ class Robot(impl.RobotImpl):
         # Register a callback for a button. Returns callback handler ID.
         # button_id: A string. One of 'BUTTON_MAIN', 'BUTTON_1', 'BUTTON_2', or
         #   'BUTTON_3'
-        # fn: The callback function. Signature should be 'fn(button_down) => bool'
+        # fn: The callback function. Signature should be 'fn(button_down) -> bool'
         state_key = self._new_state_var()
         self._state_vars[state_key] = self._last_sensor_obj[button_id]['s']
         def _cb(sensor_obj):
@@ -229,7 +229,7 @@ class Robot(impl.RobotImpl):
     def on_button_main(self, fn):
         # Add a callback for when the main button is pressed. The callback
         # signature should be:
-        #     fn(button_down) => bool
+        #     fn(button_down) -> bool
         # If the callback function returns False, the callback will not be
         # called again.
         return self.on_button('BUTTON_MAIN', fn)
@@ -237,7 +237,7 @@ class Robot(impl.RobotImpl):
     def on_button_1(self, fn):
         # Add a callback for when the button 1 is pressed. The callback
         # signature should be:
-        #     fn(button_down) => bool
+        #     fn(button_down) -> bool
         # If the callback function returns False, the callback will not be
         # called again.
         return self.on_button('BUTTON_1', fn)
@@ -245,7 +245,7 @@ class Robot(impl.RobotImpl):
     def on_button_2(self, fn):
         # Add a callback for when the button 2 is pressed. The callback
         # signature should be:
-        #     fn(button_down) => bool
+        #     fn(button_down) -> bool
         # If the callback function returns False, the callback will not be
         # called again.
         return self.on_button('BUTTON_2', fn)
@@ -253,7 +253,7 @@ class Robot(impl.RobotImpl):
     def on_button_3(self, fn):
         # Add a callback for when the button 3 is pressed. The callback
         # signature should be:
-        #     fn(button_down) => bool
+        #     fn(button_down) -> bool
         # If the callback function returns False, the callback will not be
         # called again.
         return self.on_button('BUTTON_3', fn)
@@ -293,7 +293,7 @@ class Robot(impl.RobotImpl):
 
     def on_clap_heard(self, fn):
         # Add a callback for when a clap is heard. Callback signature:
-        # fn() => bool
+        # fn() -> bool
         # if the callback returns False, it will not be called again if there
         # are additional claps.
         state_key = self._new_state_var()
@@ -322,4 +322,62 @@ class Robot(impl.RobotImpl):
             fut.set_result(None)
             return False
         self.on_clap_heard(_cb)
+        fut.wait()
+
+    def get_mic_volume(self):
+        # Get the current detected microphone volume
+        return self._last_sensor_obj['MICROPHONE']['amp']
+
+    def on_voice_heard(self, fn):
+        # Add a callback for when a voice is heard. Callback signature:
+        #     fn() -> bool
+        # If the callback returns Fals, it will not be called again.
+
+        # Number of consecutive volume events
+        num_cons_hits = self._new_state_var() 
+        voice_heard_state = self._new_state_var()
+
+        self._state_vars[num_cons_hits] = 0
+        voice_vol_upper_threshold = 0.1
+        voice_vol_lower_threshold = 0.05
+        if self.get_mic_volume() > voice_vol_lower_threshold:
+            self._state_vars[voice_heard_state] = True
+        else:
+            self._state_vars[voice_heard_state] = False
+        debounce_threshold = 1
+
+        def _cb(sensor_obj):
+            vol = sensor_obj['MICROPHONE']['amp']
+            state = self._state_vars[voice_heard_state]
+            debounce = self._state_vars[num_cons_hits]
+
+            if state == False:
+                if vol > voice_vol_upper_threshold:
+                    if debounce > debounce_threshold:
+                        self._state_vars[num_cons_hits] = 0
+                        self._state_vars[voice_heard_state] = True
+                        return fn()
+                    else:
+                        self._state_vars[num_cons_hits] += 1
+                else:
+                    self._state_vars[num_cons_hits] = 0
+            else:
+                if vol < voice_vol_lower_threshold:
+                    if debounce > debounce_threshold:
+                        self._state_vars[num_cons_hits] = 0
+                        self._state_vars[voice_heard_state] = False
+                    else:
+                        self._state_vars[num_cons_hits] += 1
+                else:
+                    self._state_vars[num_cons_hits] = 0
+            return True
+
+        return self._add_sensor_event_listener(_cb)
+
+    def wait_until_voice(self):
+        fut = future.Future()
+        def _cb():
+            fut.set_result(None)
+            return False
+        self.on_voice_heard(_cb)
         fut.wait()
