@@ -1,18 +1,28 @@
 import time
 
 class Future:
+    """A WW implementation of a "Future" object (also known as a "Promise")
+    """
     def __init__(self):
         self._result = None
         self._fulfilled = False
 
     def set_result(self, result):
+        """Set the result of a waiting future. This also sets the status of the
+        future to "fulfilled" and allows other coroutines waiting on this
+        future to proceed."""
         self._result = result
         self._fulfilled = True
 
     def poll(self):
+        """Check to see if the future is fulfilled"""
         return self._fulfilled
 
     def wait(self):
+        """Wait for the future to be fulfilled.
+
+        Returns: The result as set by Future.set_result()
+        """
         while self._fulfilled is False:
             time.sleep(0.1)
         return self._result

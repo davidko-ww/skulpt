@@ -1,78 +1,56 @@
 
 import future
-import impl
+try:
+    import impl
+except:
+    import impl_stub as impl
+    
 import time
 
 # Minimum timeout for waiting for robot events to finish, such as playing
 # sounds, poses, etc.
 MIN_TIMEOUT = 0.5
 
-def iGen():
-    # Index generator
-    i = 0
-    while True:
-        yield i
-        i += 1
-
-class Obstacle:
-    Left = iGen()
-    Right = iGen()
-    Rear = iGen()
-
-class ObstacleState:
-    NotSeen = iGen()
-    Seen = iGen()
-
-class Buttons:
-    Main = iGen()
-    Circle = iGen()
-    Square = iGen()
-    Triangle = iGen()
-
-class ButtonState:
-    Up = iGen()
-    Down = iGen()
-
-class Heard:
-    Clap = iGen()
-    Voice = iGen()
-
-class EventCallback:
-    def __init__(self, event_id, callback):
-        # event_id: e.g. ButtonState.Up
-        # callback: The callback to call if the event is triggered
-        self.event_id = event_id
-        self.callback = callback
-
-def sensors_to_eventlist(sensors):
-    events = {}
-
-class EventHandler:
-    def __init__(self):
-        self._last_event_obj = None
-        self._callbacks = []
-        self._id_index = 0
-
-    def register_callback(self, event_callback):
-        # event_callback should be an instance of EventCallback
-        # Returns an ID number for the new event handler
-        event_callback.id = self._id_index
-        self._id_index += 1
-        self._callbacks.append(event_callback)
-        return event_callback.id
-
-    def deregister_callback(self, callback_id):
-        filter(lambda x: x.id != callback_id, self._callbacks)
-
-    def handle_sensors(self, sensors):
-        if self._last_event_obj is None:
-            self._last_event_obj = sensors
-            return
-
 class Robot(impl.RobotImpl):
+    """A class for controlling Dash, Dot, and Cue robots.
+
+    This class contains a number of member functions to peform a variety of
+    tasks related to Dash, Dot, and Cue robots. These tasks include:
+        * Moving the robot
+        * Getting sensor information from the robot
+        * Registering callback functions to be invoked when certain events occur.
+
+    Examples:
+
+        Moving the robot forward 20 centimeters:
+
+            import wonder
+            robot = wonder.Robot()
+            robot.pose(20, 0, 0, 1)
+
+        Setting all RGB LEDs to purple:
+
+            import wonder
+            robot = wonder.Robot()
+            robot.rgb_all(255, 0, 255)
+
+        Very naive object following for 1 minute:
+
+            import wonder
+            import time
+            robot = wonder.Robot()
+            start_time = time.time()
+            while (time.time() - start_time) < 60:
+                distance = robot.ir_distance_left()
+                if distance > 20:
+                    robot.linear_angular(10, 0)
+                if distance < 10:
+                    robot.linear_angular(-10, 0)
+                else:
+                    robot.linear_angular(0, 0)
+    """
     def __init__(self, *args, **kwargs):
         super(Robot, self).__init__(*args, **kwargs)
-        self._event_handlers = []
         self._state_vars = {}
         self._state_var_keys = 0
         self._last_sensor_obj = {}
@@ -92,7 +70,13 @@ class Robot(impl.RobotImpl):
         return rc
 
     def eye_ring(self, bit_string, brightness):
-        # bit_string is a string of 12 ones and zeroes. e.g. "101100111011"
+        """Set the eye ring pattern on Dash and Cue.
+
+        Args:
+            bit_string: A string of 12 "1" characters and "2" characters. e.g.
+                "101100111011"
+            brightness: A float value from 0 to 1
+        """
         def f(x):
             if x == '0':
                 return False
@@ -104,6 +88,13 @@ class Robot(impl.RobotImpl):
         self._eye_ring(bool_array, brightness)
 
     def sound_async(self, filename, volume):
+        """The asynchronous version of Robot.sound().
+
+        See also: Robot.sound()
+
+        Returns:
+            A Future object. See: future.Future() in :mod:`future`
+        """
         self._sound(filename, volume)
         fut = future.Future()
         call_time = time.time()
@@ -119,10 +110,23 @@ class Robot(impl.RobotImpl):
         return fut
 
     def sound(self, filename, volume):
+        """Play a sound.
+
+        Args:
+            filename: A string containing the filename of a sound file on
+                Dash/Dot/Cue to play.
+            volume: A number from 0.0 to 1.0
+        """
         fut = self.sound_async(filename, volume)
         fut.wait()
 
     def pose_async(self, x, y, degrees, pose_time):
+        """Move the robot to a new position (asynchronous)
+
+        See also: robot.pose()
+
+        Returns: a wonder.future.Future object.
+        """
         self._pose(x, y, degrees, pose_time)
         fut = future.Future()
         call_time = time.time()
@@ -142,10 +146,51 @@ class Robot(impl.RobotImpl):
         return fut
 
     def pose(self, x, y, degrees, time):
+        """Perform a 'pose' command.
+
+        This commands moves the robot from its current position to a relative
+        position (x,y). The coordinate system is fixed to Dash's body as shown in 
+		ascii image below:
+
+                    +X  (Forward)
+                     ^
+                     |         <-
+                     |            \\
+            +Y <--- Robot  +Angle |
+            (Left)                /
+
+        For example, the following command will move Dash so that it ends up 10
+        centimeters forward and facing to the left:
+
+            robot.pose(10, 0, 90, 1)
+
+        Similarly, the following command will make Dash move so that it ends up 
+        10 centimeters to the right of its starting position:
+
+            robot.pose(0, -10, 0, 1)
+
+        Finally, the next command turns Dash in place 30 degrees to the right:
+
+            robot.pose(0, 0, -30, 1)
+
+        Args:
+            x: number of centimeters to move forward
+            y: number of centimeters to move to the left
+            degrees: Number of degrees counter-clockwise for the end position
+                to be offset from the starting position.
+            pose_time: Number of seconds allotted to complete the action.
+                Larger numbers result in slower movement.
+        """
         fut = self.pose_async(x, y, degrees, time)
         fut.wait()
 
     def head_pan_async(self, degrees):
+        """ Pan Dash/Cue's head (asynchronous)
+
+        See also: Robot.head_pan()
+
+        Returns: A wonder.future.Future object.
+        """
         if degrees > 120:
             degrees = 120
         if degrees < -120:
@@ -170,10 +215,21 @@ class Robot(impl.RobotImpl):
         return fut
 
     def head_pan(self, degrees):
+        """Pan Dash/Cue's head left or right.
+
+        Args:
+            degrees: Number of degrees to pan the head to the left.
+        """
         fut = self.head_pan_async(degrees)
         fut.wait()
 
     def head_tilt_async(self, degrees):
+        """Tilt Dash/Cue's head up or down.
+
+        See Also: Robot.head_tilt()
+
+        Returns: wonder.future.Future object.
+        """
         if degrees > 7:
             degrees = 7
         if degrees < -22.5:
@@ -198,6 +254,12 @@ class Robot(impl.RobotImpl):
         return fut
 
     def head_tilt(self, degrees):
+        """Tilt Dash/Cue's head up or down.
+
+        Args:
+            degrees: Number of degrees down. Use negative values to make the
+                robot look up.
+        """
         fut = self.head_tilt_async(degrees)
         fut.wait()
 
@@ -227,35 +289,60 @@ class Robot(impl.RobotImpl):
         return self._add_sensor_event_listener(_cb)
 
     def on_button_main(self, fn):
-        # Add a callback for when the main button is pressed. The callback
-        # signature should be:
-        #     fn(button_down) -> bool
-        # If the callback function returns False, the callback will not be
-        # called again.
+        """Add a callback function which will be called when the main button is
+        pressed.
+
+        Args:
+            fn: The function to call when the button is pressed. The function
+                signature should be:
+
+                    fn(button_down) -> bool
+
+                If the callback function returns False, it will not be called
+                again if the button is pressed again. "button_down" will be "1"
+                if the button was pressed down or "0" if the button was raised.
+
+        Example:
+
+            import time
+            import wonder
+
+            robot = wonder.Robot() 
+
+            def my_func(button_down):
+                if button_down:
+                    print('Button pressed!')
+                else:
+                    print('Button released!')
+                return True
+
+            robot.on_button_main(my_func)
+            
+            # Spin the program while waiting for button presses.
+            while True:
+                time.sleep(1)
+        """
         return self.on_button('BUTTON_MAIN', fn)
 
     def on_button_1(self, fn):
-        # Add a callback for when the button 1 is pressed. The callback
-        # signature should be:
-        #     fn(button_down) -> bool
-        # If the callback function returns False, the callback will not be
-        # called again.
+        """Add a callback function which will be called when button 1 is pressed.
+
+        See also: Robot.on_button_main()
+        """
         return self.on_button('BUTTON_1', fn)
 
     def on_button_2(self, fn):
-        # Add a callback for when the button 2 is pressed. The callback
-        # signature should be:
-        #     fn(button_down) -> bool
-        # If the callback function returns False, the callback will not be
-        # called again.
+        """Add a callback function which will be called when button 2 is pressed.
+
+        See also: Robot.on_button_main()
+        """
         return self.on_button('BUTTON_2', fn)
 
     def on_button_3(self, fn):
-        # Add a callback for when the button 3 is pressed. The callback
-        # signature should be:
-        #     fn(button_down) -> bool
-        # If the callback function returns False, the callback will not be
-        # called again.
+        """Add a callback function which will be called when button 2 is pressed.
+
+        See also: Robot.on_button_main()
+        """
         return self.on_button('BUTTON_3', fn)
 
     def wait_until_button(self, button_id):
@@ -271,31 +358,100 @@ class Robot(impl.RobotImpl):
         fut.wait()
 
     def wait_until_button_main(self):
+        """Halt the program until the main button is pressed.
+
+        Example:
+            import wonder
+
+            robot = wonder.Robot()
+
+            print("Please press the main button on the robot's head.")
+            robot.wait_until_button_main()
+            print("Button press detected!")
+        """
         return self.wait_until_button('BUTTON_MAIN')
 
     def wait_until_button_1(self):
+        """Halt the program until button 1 is pressed.
+
+        See also: Robot.wait_until_button_main()
+        """
         return self.wait_until_button('BUTTON_1')
 
     def wait_until_button_2(self):
+        """Halt the program until button 2 is pressed.
+
+        See also: Robot.wait_until_button_main()
+        """
         return self.wait_until_button('BUTTON_2')
 
     def wait_until_button_3(self):
+        """Halt the program until button 3 is pressed.
+
+        See also: Robot.wait_until_button_main()
+        """
         return self.wait_until_button('BUTTON_3')
 
     def ir_distance_left(self):
+        """Get the estimated distance from the front-left IR sensor to any
+        object.
+
+        Returns:
+            Floating point number from 0.0 to 50 indicating the approximate
+                distance to an obstacle in centimeters.
+        """
         return self._last_sensor_obj['DISTANCE_FRONT_LEFT_FACING']['cm']
 
     def ir_distance_right(self):
+        """Get the estimated distance from the front-right IR sensor to any
+        object.
+
+        Returns:
+            Floating point number from 0.0 to 50 indicating the approximate
+                distance to an obstacle in centimeters.
+        """
         return self._last_sensor_obj['DISTANCE_FRONT_RIGHT_FACING']['cm']
 
     def ir_distance_back(self):
+        """Get the estimated distance from the rear IR sensor to any object.
+
+        Returns:
+            Floating point number from 0.0 to 50 indicating the approximate
+                distance to an obstacle in centimeters.
+        """
         return self._last_sensor_obj['DISTANCE_BACK']['cm']
 
     def on_clap_heard(self, fn):
-        # Add a callback for when a clap is heard. Callback signature:
-        # fn() -> bool
-        # if the callback returns False, it will not be called again if there
-        # are additional claps.
+        """Add a callback function which will be called when a clap is heard
+
+        Args:
+            fn: The function to call when a clap is heard. The function
+                signature should be:
+
+                    fn() -> bool
+
+                If the callback function returns False, it will not be called
+                again if another clap is heard. 
+
+        Example:
+
+            import time
+            import wonder
+
+            robot = wonder.Robot() 
+
+            def my_func():
+                print('Clap heard!')
+                # If we return False, this function will not be called again if
+                # another clap is heard.
+                return True
+
+            robot.on_clap_heard(my_func)
+            
+            # Spin the program while waiting for claps.
+            while True:
+                time.sleep(1)
+        """
         state_key = self._new_state_var()
         self._state_vars[state_key] = self._last_sensor_obj['MICROPHONE']['clap']
         def _cb(sensor_obj):
@@ -317,6 +473,17 @@ class Robot(impl.RobotImpl):
         return self._add_sensor_event_listener(_cb)
 
     def wait_until_clap(self):
+        """Halt the program until a clap is heard.
+
+        Example:
+            import wonder
+
+            robot = wonder.Robot()
+
+            print("Please clap.")
+            robot.wait_until_clap()
+            print("Clap detected!")
+        """
         fut = future.Future()
         def _cb():
             fut.set_result(None)
@@ -325,13 +492,72 @@ class Robot(impl.RobotImpl):
         fut.wait()
 
     def get_mic_volume(self):
-        # Get the current detected microphone volume
+        """Get the current ambient volume as detected by the robot's
+        microphones.
+
+        Returns: 
+            A number between 0.0 and 1.0
+        """
         return self._last_sensor_obj['MICROPHONE']['amp']
 
+    def get_accelerometer(self):
+        """Get the current accelerometer readings.
+
+        Returns:
+            A tuple of the form (x, y, z) where x, y, and z are the
+            acceleration in units of Earth G's for the x, y, and z axes
+            respectively. The axes are oriented such that the X axis points
+            in the robot's forward direction, the Y axis points to the robot's
+            left side, and the Z axis points up through the robot's head.
+        """
+        x = self._last_sensor_obj['ACCELEROMETER']['x']
+        y = self._last_sensor_obj['ACCELEROMETER']['y']
+        z = self._last_sensor_obj['ACCELEROMETER']['z']
+        return (x, y, z)
+
+    def get_gyro(self):
+        """Get the current gyro readings.
+
+        Returns:
+            A tuple of the form (roll, pitch, yaw) where roll, pitch, and yaw
+            are each in units of radians/second.
+        """
+        r = self._last_sensor_obj['GYROSCOPE']['r']
+        p = self._last_sensor_obj['GYROSCOPE']['p']
+        y = self._last_sensor_obj['GYROSCOPE']['y']
+        return (r, p, y)
+
     def on_voice_heard(self, fn):
-        # Add a callback for when a voice is heard. Callback signature:
-        #     fn() -> bool
-        # If the callback returns Fals, it will not be called again.
+        """Add a callback function which will be called when a voice is heard.
+
+        Args:
+            fn: The function to call when a voice is heard. The function
+                signature should be:
+
+                    fn() -> bool
+
+                If the callback function returns False, it will not be called
+                again if another voice is heard. 
+
+        Example:
+
+            import time
+            import wonder
+
+            robot = wonder.Robot() 
+
+            def my_func():
+                print('Voice heard!')
+                # If we return False, this function will not be called again if
+                # another voice is heard.
+                return True
+
+            robot.on_voice_heard(my_func)
+            
+            # Spin the program while waiting for voice.
+            while True:
+                time.sleep(1)
+        """
 
         # Number of consecutive volume events
         num_cons_hits = self._new_state_var() 
@@ -375,6 +601,17 @@ class Robot(impl.RobotImpl):
         return self._add_sensor_event_listener(_cb)
 
     def wait_until_voice(self):
+        """Halt the program until a voice is heard.
+
+        Example:
+            import wonder
+
+            robot = wonder.Robot()
+
+            print("Please speak.")
+            robot.wait_until_voice()
+            print("Voice detected!")
+        """
         fut = future.Future()
         def _cb():
             fut.set_result(None)
