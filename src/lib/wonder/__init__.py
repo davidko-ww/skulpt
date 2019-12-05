@@ -485,6 +485,17 @@ class Robot(impl.RobotImpl):
             return True
         return self._add_sensor_event_listener(_cb)
 
+    def wait_until_robot_tilted(self):
+        """Halt the program until the robot is tilted"""
+        fut = future.Future()
+        def _cb(tilted):
+            if tilted:
+                fut.set_result(None)
+                return False
+            return True
+        self.on_robot_tilted(_cb)
+        fut.wait()
+
     def on_clap_heard(self, fn):
         """Add a callback function which will be called when a clap is heard
 
