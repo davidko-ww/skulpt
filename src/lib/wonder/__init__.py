@@ -421,6 +421,70 @@ class Robot(impl.RobotImpl):
         """
         return self._last_sensor_obj['DISTANCE_BACK']['cm']
 
+    def attitude_pitch(self):
+        """Get the pitch of the robot in degrees"""
+        return self._last_sensor_obj['ATTITUDE']['attitudePitch']
+
+    def attitude_roll(self):
+        """Get the roll of the robot in degrees"""
+        return self._last_sensor_obj['ATTITUDE']['attitudeRoll']
+
+    def attitude_slope(self):
+        """Get the slope of the robot in degrees"""
+        return self._last_sensor_obj['ATTITUDE']['attitudeSlope']
+
+    def on_robot_tilted(self, fn):
+        """Add a callback function which will be called when the robot is tilted.
+
+        Args:
+            fn: The function to call when the robot is tilted or leveled.
+                The function signature should be:
+
+                    fn(tilt) -> bool
+
+                when fn() is called, the tilt argument will be "True" if the 
+                robot was straight but is now tilted, or "False" if the robot
+                was tilted and is now level.
+
+                If fn() returns False, it will not be called again for future
+                tilt/level events.
+
+        Example:
+
+            import time
+            import wonder
+
+            robot = wonder.Robot()
+
+            def my_func(tilt):
+                if tilt:
+                    print("Robot is tilted!")
+                else:
+                    print("Robot is level.")
+            
+            robot.on_robot_tilted(my_func)
+
+            # Spin the program while waiting for tilt events.
+            while True:
+                time.sleep(1)
+        """
+        _s = {}
+        _s['last_tilt'] = 0
+
+        def _cb(sensor_obj):
+            tilted = sensor_obj['ATTITUDE']['slopeType']
+            if tilted != _s['last_tilt']:
+                t = True
+                if tilted == 0:
+                    t = False
+                rc = fn(t)
+                _s['last_tilt'] = tilted
+                if rc is not False:
+                    return True
+                return rc
+            return True
+        return self._add_sensor_event_listener(_cb)
+
     def on_clap_heard(self, fn):
         """Add a callback function which will be called when a clap is heard
 

@@ -95,7 +95,7 @@ var $builtinmodule = function(name) {
         $loc._eye_ring = new Sk.builtin.func( (self, boolArray, brightness) => {
             boolArray = Sk.ffi.remapToJs(boolArray);
             brightness = Sk.ffi.remapToJs(brightness);
-            self.robot.command.eyering(boolArray, brightness);
+            self.robot.command.eyeRing(boolArray, brightness);
             return new Sk.misceval.promiseToSuspension( new Promise( function(resolve) {
                 self._sendCommandResolve = resolve;
             }));
