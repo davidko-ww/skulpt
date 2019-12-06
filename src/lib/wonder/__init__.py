@@ -199,9 +199,13 @@ class Robot(impl.RobotImpl):
         self._head_pan(degrees)
         fut = future.Future()
         call_time = time.time()
+        head_pan_timeout = 1.0
         def head_pan_done_cb(sensor_obj):
             if (time.time() - call_time) < MIN_TIMEOUT:
                 return True
+            if (time.time() - call_time) > head_pan_timeout:
+                fut.set_result(None)
+                return False
             try:
                 pan_angle = sensor_obj['HEAD_POSITION_PAN']['degree']
             except KeyError:
@@ -238,9 +242,13 @@ class Robot(impl.RobotImpl):
         self._head_tilt(degrees)
         fut = future.Future()
         call_time = time.time()
+        head_tilt_timeout = 1.0
         def head_tilt_done_cb(sensor_obj):
             if (time.time() - call_time) < MIN_TIMEOUT:
                 return True
+            if (time.time() - call_time) > head_tilt_timeout:
+                fut.set_result(None)
+                return False
             try:
                 tilt_angle = sensor_obj['HEAD_POSITION_TILT']['degree']
             except KeyError:
