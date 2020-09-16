@@ -73,7 +73,7 @@ class Robot(impl.RobotImpl):
         """Set the eye ring pattern on Dash and Cue.
 
         Args:
-            bit_string: A string of 12 "1" characters and "2" characters. e.g.
+            bit_string: A string of 12 "1" characters and "0" characters. e.g.
                 "101100111011"
             brightness: A float value from 0 to 1
         """
@@ -429,15 +429,15 @@ class Robot(impl.RobotImpl):
         """
         return self._last_sensor_obj['DISTANCE_BACK']['cm']
 
-    def attitude_pitch(self):
+    def get_attitude_pitch(self):
         """Get the pitch of the robot in degrees"""
         return self._last_sensor_obj['ATTITUDE']['attitudePitch']
 
-    def attitude_roll(self):
+    def get_attitude_roll(self):
         """Get the roll of the robot in degrees"""
         return self._last_sensor_obj['ATTITUDE']['attitudeRoll']
 
-    def attitude_slope(self):
+    def get_attitude_slope(self):
         """Get the slope of the robot in degrees"""
         return self._last_sensor_obj['ATTITUDE']['attitudeSlope']
 
@@ -609,6 +609,31 @@ class Robot(impl.RobotImpl):
         p = self._last_sensor_obj['GYROSCOPE']['p']
         y = self._last_sensor_obj['GYROSCOPE']['y']
         return (r, p, y)
+
+    def get_encoders(self):
+        """Get the encoder distance for both wheels.
+
+        Returns: A tuple (left_cm, right_cm)
+        """
+        left = self._last_sensor_obj['ENCODER_LEFT_WHEEL']['cm']
+        right = self._last_sensor_obj['ENCODER_RIGHT_WHEEL']['cm']
+        return (left, right)
+
+    def get_head_pan(self):
+        """Get the head pan angle.
+
+        Returns: 
+            float (degrees)
+        """
+        return self._last_sensor_obj['HEAD_POSITION_PAN']['degree']
+
+    def get_head_tilt(self):
+        """Get the head tilt angle.
+
+        Returns:
+            float (degrees)
+        """
+        return self._last_sensor_obj['HEAD_POSITION_TILT']['degree']
 
     def on_voice_heard(self, fn):
         """Add a callback function which will be called when a voice is heard.
